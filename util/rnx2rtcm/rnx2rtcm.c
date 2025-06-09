@@ -260,6 +260,23 @@ int main(int argc, char **argv) {
   int type[16], m = 0;
   char *rnxopt = "", *rtcmopt = "";
 
+#if 0
+  argv[argc++] = "-sta";
+  argv[argc++] = "0";
+  argv[argc++] = "-typ";
+  argv[argc++] = "1005,1007,1033,1019,1020,1042,1044,1045,1046,1075,1085,1095,1105,1115,1125";
+  /*argv[argc++] = "-ts";
+  argv[argc++] = "2023/02/05/";
+  argv[argc++] = "6:00:00.0";
+  argv[argc++] = "-te";
+  argv[argc++] = "2023/02/05/";
+  argv[argc++] = "8:00:00.0";*/
+  argv[argc++] = "-out";
+  argv[argc++] = "C:\\Users\\xiebaofei\\Desktop\\GAMG\\GAMG1000.rtcm3";
+  argv[argc++] = "C:\\Users\\xiebaofei\\Desktop\\GAMG\\GAMG1000.25O";
+  //argv[7] = "data\\inp\\rover099a.obs";
+#endif
+
   for (int i = 1; i < argc; i++) {
     if (!strcmp(argv[i], "-ts") && i + 2 < argc) {
       sscanf(argv[++i], "%lf/%lf/%lf", es, es + 1, es + 2);

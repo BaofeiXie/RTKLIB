@@ -50,30 +50,30 @@ extern "C" {
 #endif
 
 #ifdef _MSC_VER
-#ifdef WIN_DLL /* for Windows DLL */
-#define EXPORT __declspec(dllexport)
+    #ifdef WIN_DLL /* for Windows DLL */
+        #define EXPORT __declspec(dllexport)
+    #else
+        #define EXPORT __declspec(dllimport)
+    #endif
 #else
-#define EXPORT __declspec(dllimport)
-#endif
-#else
-#define EXPORT
+    #define EXPORT
 #endif
 
-#if (__STDC_VERSION__ >= 201710L)
-#define THREADLOCAL _Thread_local
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201710L)
+    #define THREADLOCAL _Thread_local
 #elif defined(__GNUC__)
-#define THREADLOCAL __thread
+    #define THREADLOCAL __thread
 #elif defined(_MSC_VER)
-#define THREADLOCAL __declspec(__thread)
+    #define THREADLOCAL __declspec(thread)
 #else
-#define THREADLOCAL
+    #define THREADLOCAL
 #endif
 
 /* constants -----------------------------------------------------------------*/
 
 #define VER_RTKLIB  "demo5"             /* library version */
 
-#define PATCH_LEVEL "b34L"               /* patch level */
+#define PATCH_LEVEL "b34L_dev"          /* patch level */
 
 #define COPYRIGHT_RTKLIB \
             "Copyright (C) 2007-2020 T.Takasu\nAll rights reserved."
@@ -205,7 +205,7 @@ extern "C" {
 #endif
 #ifdef ENACMP
 #define MINPRNCMP   1                   /* min satellite sat number of BeiDou */
-#define MAXPRNCMP   46                  /* max satellite sat number of BeiDou */
+#define MAXPRNCMP   64                  /* max satellite sat number of BeiDou */
 #define NSATCMP     (MAXPRNCMP-MINPRNCMP+1) /* number of BeiDou satellites */
 #define NSYSCMP     1
 #else

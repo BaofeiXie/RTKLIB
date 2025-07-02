@@ -2089,16 +2089,96 @@ static int relpos(rtk_t *rtk, const obsd_t *obs, int nu, int nr,
             stat=SOLQ_NONE;
             break;
         }
+
+#if 0
         /* kalman filter measurement update, updates x,y,z,sat phase biases, etc
                 K=P*H*(H'*P*H+R)^-1
                 xp=x+K*v
                 Pp=(I-K*H')*P                  */
         trace(3,"before filter x=");tracemat(3,rtk->x,1,9,13,6);
         if ((info=filter(xp,Pp,H,v,R,rtk->nx,nv))) {
-            errmsg(rtk,"filter error (info=%d)\n",info);
-            stat=SOLQ_NONE;
+            errmsg(rtk, "filter error (info=%d)\n", info);
+            stat = SOLQ_NONE;
+            break;
+        };
+#else
+        /* robust kalman filter measurement update, updates x,y,z,sat phase biases, etc
+        * step1: calculate residual covariance matrix Qv = H * P * H' + R
+        * step2: calculate standardized residuals and robust factors
+        * step3: apply robust factors to calculate R_ matrix
+        * step4: use robust R_ for kalman update: K=P*H*(H'*P*H+R_)^-1, xp=x+K*v, Pp=(I-K*H')*P */
+
+        // step1: calculate residual covariance matrix 
+        // Qv = H * P * H' + R
+        int nx = rtk->nx;  
+        double* HP = mat(nv, nx);        
+        double* Qv = mat(nv, nv);        
+
+        // HP = H * P
+        matmul("NN", nv, nx, nx, H, rtk->P, HP);
+
+        // Qv = HP * H' + R
+        matmul("NT", nv, nv, nx, HP, H, Qv);
+        for (int i = 0; i < nv * nv; i++) {
+            Qv[i] += R[i];  
+        }
+        free(HP);
+
+        double* R_robust = mat(nv, nv);
+        memcpy(R_robust, R, nv * nv * sizeof(double));
+
+        // step2: calculate standardized residuals and robust factors
+        const double k0 = 1.5;  
+        const double k1 = 3.0; 
+        double* std_res = (double*)malloc(nv * sizeof(double));
+
+        for (int i = 0; i < nv; i++) {
+            // calculate standardized residuals: v_i / sqrt(Qv_ii)
+            std_res[i] = v[i] / sqrt(Qv[i + i * nv]);
+
+            // calculate robust factors
+            double abs_res = fabs(std_res[i]);
+            double factor = 1.0;
+
+            if (abs_res > k0) {
+                if (abs_res <= k1) {
+                    factor = k0 / abs_res;
+                }
+                else {
+                    factor = (k0 * k1) / (abs_res * abs_res);
+                }
+            }
+
+            // step3: apply robust factors to R_ matrix
+            // adjust the diagonal elements of R_robust
+            R_robust[i + i * nv] /= (factor * factor);
+
+            // adjust the off-diagonal elements of R_robust
+            for (int j = 0; j < nv; j++) {
+                if (i != j) {
+                    // calculate the correlation coefficient
+                    double corr = R[i + j * nv] / sqrt(R[i + i * nv] * R[j + j * nv]);
+
+                    // adjust the off-diagonal elements
+                    R_robust[i + j * nv] = corr * sqrt(R_robust[i + i * nv] * R_robust[j + j * nv]);
+                    R_robust[j + i * nv] = R_robust[i + j * nv];
+                }
+            }
+        }
+
+        free(Qv);
+        free(std_res);
+
+        // step4: use adjusted R for kalman update
+        if ((info = filter(xp, Pp, H, v, R_robust, nx, nv))) {
+            errmsg(rtk, "filter error (info=%d)\n", info);
+            stat = SOLQ_NONE;
+            free(R_robust);
             break;
         }
+
+        free(R_robust);
+#endif     
         trace(3,"after filter x=");tracemat(3,xp,1,9,13,6);
         trace(4,"x(%d)=",i+1); tracemat(4,xp,1,NR(opt),13,4);
     }
